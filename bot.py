@@ -1,8 +1,9 @@
-import telebot
-from flask import Flask, request
 import os
 import logging
+import requests
 from logging import handlers
+from flask import Flask, request
+import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Use environment variables for token and webhook URL
@@ -72,29 +73,28 @@ if not TOKEN or not WEBHOOK_URL:
 # Health check route for Koyeb
 @app.route("/health", methods=["GET"])
 def health_check():
-    try:
-        return "OK", 200
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return "Error", 500
+    return "OK", 200
 
 # Webhook route to handle updates from Telegram
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    json_str = request.get_data().decode("UTF-8")
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return "OK", 200
+
+# Set webhook
 def set_webhook():
-    webhook_url = os.getenv("WEBHOOK_URL")  # Your Koyeb app's public URL
-    if not webhook_url:
+    if not WEBHOOK_URL:
         raise ValueError("WEBHOOK_URL is not set in environment variables.")
     
-    url = f"{TELEGRAM_API_URL}/setWebhook"
-    data = {"url": webhook_url}
+    url = f"https://api.telegram.org/bot{TOKEN}/setWebhook"
+    data = {"url": WEBHOOK_URL}
     response = requests.post(url, data=data)
     
     if response.status_code != 200:
         raise RuntimeError(f"Failed to set webhook: {response.text}")
     return response.json()
-
-@app.route("/health", methods=["GET"])
-def health_check():
-    return "OK", 200
 
 if __name__ == "__main__":
     # Set webhook when the script starts
