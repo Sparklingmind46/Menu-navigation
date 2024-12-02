@@ -79,35 +79,26 @@ def health_check():
         return "Error", 500
 
 # Webhook route to handle updates from Telegram
-@app.route('/' + TOKEN, methods=['POST'])
-def webhook():
-    try:
-        json_data = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_data)
-        bot.process_new_updates([update])
-        return "OK", 200
-    except Exception as e:
-        logger.error(f"Error processing webhook: {str(e)}")
-        return "Internal Server Error", 500
-
-# Set webhook on startup
-@app.before_first_request
 def set_webhook():
-    try:
-        bot.remove_webhook()  # Remove any existing webhook
-        response = bot.set_webhook(url=WEBHOOK_URL)  # Set the new webhook with Koyeb URL
-        if not response:
-            logger.error("Failed to set webhook.")
-        else:
-            logger.info(f"Webhook set successfully: {WEBHOOK_URL}")
-    except Exception as e:
-        logger.error(f"Error setting webhook: {str(e)}")
-        raise RuntimeError(f"Failed to set webhook: {str(e)}")
+    webhook_url = os.getenv("WEBHOOK_URL")  # Your Koyeb app's public URL
+    if not webhook_url:
+        raise ValueError("WEBHOOK_URL is not set in environment variables.")
+    
+    url = f"{TELEGRAM_API_URL}/setWebhook"
+    data = {"url": webhook_url}
+    response = requests.post(url, data=data)
+    
+    if response.status_code != 200:
+        raise RuntimeError(f"Failed to set webhook: {response.text}")
+    return response.json()
 
-# Run the Flask app
+@app.route("/health", methods=["GET"])
+def health_check():
+    return "OK", 200
+
 if __name__ == "__main__":
-    try:
-        # Ensure the webhook is set before starting the app
-        app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-    except Exception as e:
-        logger.error(f"Error starting Flask app: {str(e)}")
+    # Set webhook when the script starts
+    logger.info("Setting webhook...")
+    result = set_webhook()
+    logger.info(f"Webhook set: {result}")
+    app.run(host="0.0.0.0", port=5000)
