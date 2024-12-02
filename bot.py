@@ -97,6 +97,8 @@ def set_webhook():
     return response.json()
 
 if __name__ == "__main__":
+    # Try polling first to test
+    bot.polling(none_stop=True)
     # Set webhook when the script starts
     logger.info("Setting webhook...")
     result = set_webhook()
