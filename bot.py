@@ -2,6 +2,9 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 import os
 import time
+from pyrogram.errors.exceptions.flood_420 import FloodWait
+from database import add_user, add_group, all_users, all_groups, users, remove_user
+from configs import cfg
 
 # Initialize Pyrogram Client
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -72,5 +75,82 @@ async def callback_query_handler(client, callback_query):
         reply_markup=markup
     )
 
-# Run the bot
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.on_message(filters.command("users") & filters.user(cfg.SUDO))
+async def dbtool(_, m : Message):
+    xx = all_users()
+    x = all_groups()
+    tot = int(xx + x)
+    await m.reply_text(text=f"""
+🍀 Chats Stats 🍀
+🙋‍♂️ Users : `{xx}`
+👥 Groups/Channels : `{x}`
+🚧 Total users & groups : `{tot}` """)
+
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.on_message(filters.command("bcast") & filters.user(cfg.SUDO))
+async def bcast(_, m : Message):
+    allusers = users
+    lel = await m.reply_text("`⚡️ Processing...`")
+    success = 0
+    failed = 0
+    deactivated = 0
+    blocked = 0
+    for usrs in allusers.find():
+        try:
+            userid = usrs["user_id"]
+            #print(int(userid))
+            if m.command[0] == "bcast":
+                await m.reply_to_message.copy(int(userid))
+            success +=1
+        except FloodWait as ex:
+            await asyncio.sleep(ex.value)
+            if m.command[0] == "bcast":
+                await m.reply_to_message.copy(int(userid))
+        except errors.InputUserDeactivated:
+            deactivated +=1
+            remove_user(userid)
+        except errors.UserIsBlocked:
+            blocked +=1
+        except Exception as e:
+            print(e)
+            failed +=1
+
+    await lel.edit(f"✅Successfull to `{success}` users.\n❌ Faild to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users.")
+
+#━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast Forward ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@app.on_message(filters.command("fcast") & filters.user(cfg.SUDO))
+async def fcast(_, m : Message):
+    allusers = users
+    lel = await m.reply_text("`⚡️ Processing...`")
+    success = 0
+    failed = 0
+    deactivated = 0
+    blocked = 0
+    for usrs in allusers.find():
+        try:
+            userid = usrs["user_id"]
+            #print(int(userid))
+            if m.command[0] == "fcast":
+                await m.reply_to_message.forward(int(userid))
+            success +=1
+        except FloodWait as ex:
+            await asyncio.sleep(ex.value)
+            if m.command[0] == "fcast":
+                await m.reply_to_message.forward(int(userid))
+        except errors.InputUserDeactivated:
+            deactivated +=1
+            remove_user(userid)
+        except errors.UserIsBlocked:
+            blocked +=1
+        except Exception as e:
+            print(e)
+            failed +=1
+
+    await lel.edit(f"✅Successfull to `{success}` users.\n❌ Faild to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users.")
+
+print("I'm Alive Now!")
 app.run()
